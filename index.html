@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>兒童未來中央銀行冒險記帳本</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <style>
+        /* ==========================================================================
+           【系統全域變數與基本設定】
+           ========================================================================== */
+        :root {
+            --header-bg: linear-gradient(180deg, #eaf4fe 0%, #f4f9ff 100%);
+            --body-bg: #fdfbf7;
+            --card-bg: #ffffff;
+            --star-color: #f1c40f;
+            --text-main: #2c3e50;
+            --text-muted: #7f8c8d;
+            --accent-blue: #3498db;
+            --accent-green: #2ecc71;
+            --accent-red: #e74c3c;
+            --accent-purple: #9b59b6;
+            --accent-orange: #e67e22;
+        }
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+            background-color: var(--body-bg);
+            margin: 0; padding: 0 0 80px 0;
+            color: var(--text-main);
+        }
+        
+        /* ==========================================================================
+           【置頂導覽列區塊 (HEADER)】
+           ========================================================================== */
+        .sticky-header {
+            position: sticky; top: 0; left: 0; width: 100%;
+            background: var(--header-bg); z-index: 100;
+            padding: 8px 16px;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.1);
+            border-bottom-left-radius: 20px; border-bottom-right-radius: 20px;
+            display: flex; 
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+        }
+        
+        /* 左方：姓名與日期區塊 */
+        .header-user-zone { 
+            display: flex; flex-direction: column; gap: 1px; 
+            flex-shrink: 0;
+            min-width: 140px;
+        }
+        .greeting { font-size: 18px; font-weight: bold; color: #1a3a5f; margin: 0; }
+        .today-date { font-size: 11px; color: #5a7b9c; font-weight: 500; margin: 0; }
+        
+        /* ⚙️ 右方：家長端控制台按鈕 */
+        .btn-mgmt-trigger {
+            background: #ffffff; border: 1px solid #d0e3f7; border-radius: 50%;
+            width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
+            font-size: 18px; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.05); transition: transform 0.2s;
+            flex-shrink: 0;
+        }
+        .btn-mgmt-trigger:hover { transform: rotate(30deg); }
+
+        /* 置頂中間：錢包與存簿雙層方框 */
+        .header-center-assets {
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+            gap: 12px; 
+            flex: 1;
+            max-width: 420px;
+            margin: 0;
+        }
+        .status-pill-horizontal {
+            background: #ffffff; border-radius: 14px; 
+            padding: 6px 12px;
+            box-shadow: 0 3px 8px rgba(52, 152, 219, 0.06);
+            border: 2px solid #e1eefc;
+            flex: 1;
+            display: flex; 
+            flex-direction: column;
+            align-items: center; 
+            justify-content: center;
+            gap: 2px;
+        }
+        .pill-text-left { 
+            font-size: 11px;
+            font-weight: bold; 
+            color: var(--text-muted); 
+            line-height: 1;
+        }
+        .pill-num-right { 
+            font-size: 24px;
+            font-weight: 900; 
+            line-height: 1;
+        }
+        .num-wallet { color: var(--accent-orange); }
+        .num-bank { color: var(--accent-blue); }
+
+        /* ==========================================================================
+           【首頁版面佈局 (LAYOUT)】
+           ========================================================================== */
+        .container { max-width: 900px; margin: 15px auto; padding: 0 15px; }
+        .panel { display: none; }
+        .panel.active { display: block; }
+        
+        .card {
+            background: var(--card-bg); border-radius: 20px; padding: 20px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.04); margin-bottom: 15px;
+            border: 1px solid #f1f1f1;
+        }
+        
+        /* 雙欄並排系統：寵物在左，火箭在右 */
+        .dashboard-top-layout { display: grid; grid-template-columns: 1fr; gap: 15px; margin-bottom: 15px; }
+        @media (min-width: 768px) { .dashboard-top-layout { grid-template-columns: 0.9fr 1.1fr; } }
+
+        /* 下方任務與商店並列 */
+        .adventure-layout { display: grid; grid-template-columns: 1fr; gap: 15px; }
+        @media (min-width: 768px) { .adventure-layout { grid-template-columns: 1.1fr 0.9fr; } }
+
+        /* ==========================================================================
+           【左側：寵物培育區樣式】
+           ========================================================================== */
+        .pet-display { text-align: center; padding: 15px; background: #fafbfc; height: 100%; display: flex; flex-direction: column; justify-content: center; margin-bottom: 0; }
+        .pet-avatar-container {
+            width: 90px; height: 90px; margin: 0 auto 8px;
+            display: flex; align-items: center; justify-content: center;
+            background: #ffffff; border-radius: 50%; border: 2px dashed #adc6ff; font-size: 45px;
+        }
+        .pet-speech {
+            background: #eef2f7; padding: 6px 12px; border-radius: 12px;
+            display: inline-block; font-weight: bold; color: #445566; font-size: 13px; margin-top: 5px;
+        }
+
+        /* ==========================================================================
+           【右側：圓夢火箭計畫樣式】
+           ========================================================================== */
+        .rocket-card { border-left: 5px solid #9b59b6; background: #fdfcff; height: 100%; margin-bottom: 0; display: flex; flex-direction: column; justify-content: space-between; }
+        .rocket-progress-container { background: #e9ecef; border-radius: 12px; height: 20px; position: relative; overflow: hidden; margin: 12px 0; }
+        .rocket-bar { background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue)); height: 100%; width: 0%; transition: width 0.5s; }
+        .rocket-icon-indicator { position: absolute; top: 0; right: 0; font-size: 14px; line-height: 20px; padding-right: 5px; }
+        
+        /* ==========================================================================
+           【任務、商店與通用元件樣式】
+           ========================================================================== */
+        .task-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f5f5f5; }
+        .task-left { display: flex; align-items: center; gap: 10px; }
+        .task-cb { width: 22px; height: 22px; cursor: pointer; }
+        .task-tag { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-left: 6px; }
+        .tag-regular { background-color: #ffebee; color: #c62828; }
+        .tag-challenge { background-color: #e8f5e9; color: #2e7d32; }
+        
+        .store-box { position: relative; }
+        .store-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .store-lock-overlay {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            background: rgba(255,255,255,0.92); display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 10; border-radius: 20px; text-align: center;
+        }
+        .store-card {
+            background: #fff; border: 1px solid #eaeaea; border-radius: 14px;
+            padding: 12px; text-align: center; display: flex; flex-direction: column; justify-content: space-between;
+        }
+        
+        /* ==========================================================================
+           【統計與圖表數據明細樣式】
+           ========================================================================== */
+        .stats-summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; }
+        .stat-box { padding: 12px; border-radius: 16px; text-align: center; }
+        .stat-box-in { background-color: #e8f5e9; border: 1px solid #c8e6c9; color: #2e7d32; }
+        .stat-box-out { background-color: #ffebee; border: 1px solid #ffcdd2; color: #c62828; }
+        .stat-box-title { font-size: 13px; margin-bottom: 4px; display: flex; align-items: center; justify-content: center; gap: 4px; }
+        .stat-box-num { font-size: 24px; font-weight: bold; }
+
+        .history-list { max-height: 280px; overflow-y: auto; padding-right: 5px; }
+        .history-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 14px; border-radius: 12px; margin-bottom: 8px;
+            background: #f8fafc; border-left: 4px solid #ccc;
+        }
+        .history-item.type-in { border-left-color: var(--accent-green); background: #f4fbf6; }
+        .history-item.type-out { border-left-color: var(--accent-red); background: #fdf5f5; }
+        .history-item.type-atm { border-left-color: var(--accent-blue); background: #f4f9fd; }
+        .history-details { display: flex; flex-direction: column; gap: 3px; }
+        .history-reason { font-size: 14px; font-weight: bold; }
+        .history-date { font-size: 11px; color: var(--text-muted); }
+        .history-amt { font-size: 15px; font-weight: bold; }
+        .amt-pos { color: #2e7d32; }
+        .amt-neg { color: #c62828; }
+
+        /* ==========================================================================
+           【基礎控制元件與彈窗 (MODAL & NAV)】
+           ========================================================================== */
+        .btn { background: var(--accent-blue); color: #fff; border: none; padding: 10px 16px; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        .btn:disabled { background: #cbd5e1 !important; color: #94a3b8 !important; cursor: not-allowed; }
+        .btn-success { background: var(--accent-green); }
+        .btn-danger { background: var(--accent-red); }
+        .form-control { width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 8px; }
+        
+        .nav-tabs {
+            display: flex; justify-content: center; background: #fff;
+            border-top: 2px solid #e2e8f0; position: fixed; bottom: 0; left: 0;
+            width: 100%; z-index: 90; box-shadow: 0 -4px 12px rgba(0,0,0,0.04);
+        }
+        .tab-btn {
+            flex: 1; padding: 12px 0; text-align: center;
+            background: none; border: none; font-size: 15px; font-weight: bold;
+            color: var(--text-muted); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px;
+        }
+        .tab-btn.active { color: var(--accent-blue); background-color: #f7faff; border-top: 3px solid var(--accent-blue); }
+        
+        .modal { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 200; padding: 15px; }
+        .modal.active { display: flex; }
+        .modal-content { background: #fff; border-radius: 20px; max-width: 650px; width: 100%; max-height: 85vh; overflow-y: auto; padding: 20px; position: relative; }
+        .close-btn { position: absolute; top: 15px; right: 15px; font-size: 24px; cursor: pointer; background: none; border: none; }
+        
+        .mgmt-list-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid #eee; background: #fafafa; margin-bottom: 4px; border-radius: 6px; }
+        .btn-del-item { background: none; border: none; color: var(--accent-red); font-size: 16px; cursor: pointer; font-weight: bold; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+        th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: center; }
+        th { background-color: #f8fafc; }
+    </style>
+</head>
+<body>
+
+    <div class="sticky-header">
+        <div class="header-user-zone">
+            <h1 class="greeting" id="topKidGreeting">嗨，寶弟！</h1>
+            <div class="today-date" id="topTodayDateStr">🗓️ 今天是 2026-06-28 (日)</div>
+        </div>
+        
+        <div class="header-center-assets">
+            <div class="status-pill-horizontal">
+                <span class="pill-text-left">👛 錢包</span>
+                <span class="pill-num-right num-wallet" id="topWalletStars">0</span>
+            </div>
+            <div class="status-pill-horizontal">
+                <span class="pill-text-left">🏦 存款</span>
+                <span class="pill-num-right num-bank" id="topBankStars">0</span>
+            </div>
+        </div>
+
+        <button class="btn-mgmt-trigger" onclick="openMgmtModal()" title="家長後台設定系統">⚙️</button>
+    </div>
+
+    <div class="container">
+        
+        <div class="dashboard-top-layout">
+            <div class="card pet-display">
+                <div class="pet-avatar-container" id="petAvatarBox">Egg</div>
+                <div style="font-weight: bold; font-size: 14px;" id="petNameStage">載入中...</div>
+                <div><span class="pet-speech" id="petSpeechBubble">加油！</span></div>
+            </div>
+
+            <div class="card rocket-card">
+                <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:15px;">
+                    <span id="rocketTargetName">🚀 圓夢火箭計畫：尚未設定目標</span>
+                    <span id="rocketTargetCost" style="color:var(--accent-purple);">0 ⭐</span>
+                </div>
+                <div class="rocket-progress-container">
+                    <div class="rocket-bar" id="rocketBar"></div>
+                    <div class="rocket-icon-indicator">🚀</div>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-muted);">
+                    <span id="rocketProgressText">儲蓄進度：0%</span>
+                    <span id="rocketRemainingText">還差 0 顆星星發射火箭</span>
+                </div>
+                <div style="text-align: right; margin-top: 5px;" id="rocketActionZone"></div>
+            </div>
+        </div>
+
+        <div id="tab-adventure" class="panel active">
+            <div class="adventure-layout">
+                <div class="card">
+                    <h2 style="margin-top:0; font-size:17px;">📅 今日冒險挑戰</h2>
+                    <div style="font-size:13px; color:var(--text-muted); margin-bottom:10px;">
+                        🎯 任務完成度：<span id="completionRateText">0%</span>
+                    </div>
+                    <div id="todayTaskList"></div>
+                </div>
+
+                <div class="card store-box">
+                    <h2 style="margin-top:0; font-size:17px;">🛒 星星魔法商店</h2>
+                    <div class="store-grid" id="storeGridContainer">
+                        <div class="store-lock-overlay" id="storeLockOverlay">
+                            <span style="font-size: 36px; margin-bottom: 5px;">🔒</span>
+                            <h3 style="margin:0; font-size:15px;">商店封印中</h3>
+                            <p style="font-size:12px; color:var(--text-muted); padding:0 10px; margin:4px 0 0 0;">必須「完成今日所有任務」才能解鎖消費！</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-bank" class="panel">
+            <div class="card">
+                <h2 style="margin-top:0; font-size:17px;">🏧 魔法智慧儲蓄 ATM</h2>
+                <div style="display:flex; gap:10px; margin-bottom:12px; align-items:center;">
+                    <div style="flex:1;">
+                        <input type="number" id="atmAmount" class="form-control" value="10" min="1" style="font-size:16px; font-weight:bold; text-align:center;">
+                    </div>
+                    <span style="font-weight:bold;">顆星星</span>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-success" style="flex:1;" onclick="handleAtmAction('deposit')">📥 存入銀行</button>
+                    <button class="btn btn-danger" style="flex:1;" onclick="handleAtmAction('withdraw')">📤 提領現鈔</button>
+                </div>
+                <div style="margin-top:12px; background:#fffdf3; border:1px solid #fbeeb4; padding:10px; border-radius:10px; display:flex; justify-content:space-between; align-items:center; font-size:13px;">
+                    <div><strong style="color:#b78103;">🎁 週日利息魔術 (5% 複利) <span id="estimatedInterest" style="color: #e67e22; margin-left: 5px;">(目前可領: 0 顆 ⭐)</span></strong></div>
+                    <button class="btn" id="btnClaimInterest" style="background:#ffb300; padding:6px 12px; font-size:12px;" onclick="claimWeeklyInterest()">領取利息</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 style="margin-top:0; font-size:17px;">📈 資產趨勢與明細</h2>
+                <div style="display:flex; gap:8px; margin-bottom:12px; align-items:center;">
+                    <input type="date" id="filterStartDate" class="form-control" style="font-size:13px;">
+                    <span style="font-size:13px; color:var(--text-muted);">至</span>
+                    <input type="date" id="filterEndDate" class="form-control" style="font-size:13px;">
+                    <button class="btn" onclick="renderReportSection()" style="padding:6px 12px; font-size:13px;">篩選</button>
+                </div>
+
+                <div class="stats-summary-grid">
+                    <div class="stat-box stat-box-in">
+                        <div class="stat-box-title">📥 期間總存入</div>
+                        <div class="stat-box-num" id="statTotalIn">0</div>
+                    </div>
+                    <div class="stat-box stat-box-out">
+                        <div class="stat-box-title">📤 期間總花費</div>
+                        <div class="stat-box-num" id="statTotalOut">0</div>
+                    </div>
+                </div>
+
+                <div style="position: relative; height:220px; width:100%; margin-bottom:20px;">
+                    <canvas id="assetChart"></canvas>
+                </div>
+
+                <h3 style="font-size:15px; margin: 15px 0 10px 0; border-top:1px solid #eee; padding-top:15px;">📋 期間變動明細錄</h3>
+                <div class="history-list" id="historyLogListContainer"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="nav-tabs">
+        <button class="tab-btn active" id="btn-tab-adventure" onclick="switchTab('adventure')"><span>🗺️</span>冒險任務</button>
+        <button class="tab-btn" id="btn-tab-bank" onclick="switchTab('bank')"><span>🏦</span>魔法銀行</button>
+    </div>
+
+    <div class="modal" id="mgmtModal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeMgmtModal()">✕</button>
+            <h2 style="margin-top:0; border-bottom:2px solid #eee; padding-bottom:8px; font-size:18px;">⚙️ 家長端核心控制台</h2>
+            
+            <div style="background:#f1f8ff; padding:12px; border-radius:8px; margin-bottom:15px;">
+                <h3 style="margin:0 0 8px 0; font-size:14px; color:#1a3a5f;">👶 帳號切換與更名功能</h3>
+                <div id="kidSelectorBackyard" style="margin-bottom:10px; display:flex; gap:6px; flex-wrap:wrap;"></div>
+                
+                <div style="display:flex; gap:8px; margin-bottom:8px;">
+                    <input type="text" id="renameKidInput" class="form-control" placeholder="輸入目前孩子的新姓名">
+                    <button class="btn" style="background-color:var(--accent-purple);" onclick="renameCurrentKid()">✏️ 修改目前名稱</button>
+                </div>
+                <hr style="border:none; border-top:1px dashed #c8dff7; margin:10px 0;">
+                <div style="display:flex; gap:8px;">
+                    <input type="text" id="newKidName" class="form-control" placeholder="新增新成員姓名">
+                    <button class="btn btn-success" onclick="addNewKid()">➕ 新增孩子</button>
+                </div>
+            </div>
+
+            <div style="border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:15px; background: #fffdf9;">
+                <h3 style="margin-top:0; font-size:14px; color: var(--accent-purple);">🐾 陪伴寵物更換系統</h3>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <select id="mgmtPetSelector" class="form-control" style="font-weight: bold;"></select>
+                    <button class="btn" style="background: var(--accent-purple); white-space: nowrap;" onclick="changeCurrentPet()">確認更換寵物</button>
+                </div>
+                <p style="font-size:11px; color:var(--text-muted); margin: 6px 0 0 0;">💡 說明：更換新寵物經驗值會重新計算；若換回舊寵物，原本的經驗值仍會保留喔！</p>
+            </div>
+
+            <div style="border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:15px; background: #fbf8ff;">
+                <h3 style="margin-top:0; font-size:14px; color: var(--accent-purple);">📅 利息領取狀態控制</h3>
+                <button class="btn" style="background: var(--accent-purple);" onclick="resetInterestStatus()">🔓 解鎖本週利息領取權限</button>
+                <p style="font-size:11px; color:var(--text-muted); margin: 6px 0 0 0;">💡 說明：若孩子錯過時間或需要手動重新開放，點擊此鈕即可解除反灰狀態。</p>
+            </div>
+
+            <div style="border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:15px;">
+                <h3 style="margin-top:0; font-size:14px;">🔧 資產手動校正（點數微調）</h3>
+                <div style="display:flex; gap:10px; margin-bottom:8px;">
+                    <div><label>錢包：</label><input type="number" id="overrideWallet" class="form-control"></div>
+                    <div><label>存簿：</label><input type="number" id="overrideBank" class="form-control"></div>
+                </div>
+                <button class="btn" onclick="saveAssetOverride()">更正數值</button>
+            </div>
+
+            <div style="border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:15px;">
+                <h3 style="margin-top:0; font-size:14px;">🚀 圓夢火箭目標發布</h3>
+                <div style="display:flex; gap:10px; margin-bottom:8px;">
+                    <div style="flex:2;"><label>夢想名稱：</label><input type="text" id="mgmtRocketName" class="form-control"></div>
+                    <div style="flex:1;"><label>星數：</label><input type="number" id="mgmtRocketCost" class="form-control"></div>
+                </div>
+                <button class="btn btn-success" onclick="saveRocketTarget()">設定目標</button>
+            </div>
+
+            <div style="border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:15px;">
+                <h3 style="margin-top:0; font-size:14px;">🔧 任務庫管理</h3>
+                <div style="display:flex; gap:6px; margin-bottom:8px;">
+                    <input type="text" id="newTaskIcon" class="form-control" placeholder="🧹" style="width:50px; text-align:center;">
+                    <input type="text" id="newTaskName" class="form-control" placeholder="任務名稱內容">
+                    <input type="number" id="newTaskReward" class="form-control" placeholder="星數" style="width:65px; text-align:center;">
+                    <button class="btn btn-success" onclick="addTaskToPool()">添加任務</button>
+                </div>
+                <div id="mgmtTaskListContainer" style="max-height:130px; overflow-y:auto; border:1px solid #eee; padding:5px; border-radius:6px;"></div>
+            </div>
+
+            <div style="border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:15px;">
+                <h3 style="margin-top:0; font-size:14px;">🎁 商店獎勵管理</h3>
+                <div style="display:flex; gap:6px; margin-bottom:8px;">
+                    <input type="text" id="newShopIcon" class="form-control" placeholder="🎮" style="width:50px; text-align:center;">
+                    <input type="text" id="newShopName" class="form-control" placeholder="獎勵品特權名稱">
+                    <input type="number" id="newShopCost" class="form-control" placeholder="費用" style="width:65px; text-align:center;">
+                    <button class="btn btn-success" onclick="addShopItem()">上架商品</button>
+                </div>
+                <div id="mgmtShopListContainer" style="max-height:130px; overflow-y:auto; border:1px solid #eee; padding:5px; border-radius:6px;"></div>
+            </div>
+
+            <div style="border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:15px;">
+                <h3 style="margin-top:0; font-size:14px;">📅 每週規劃</h3>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead><tr><th>任務項目</th><th>一</th><th>二</th><th>三</th><th>四</th><th>五</th><th>六</th><th>日</th></tr></thead>
+                        <tbody id="scheduleTableBody"></tbody>
+                    </table>
+                </div>
+                <button class="btn btn-success" style="margin-top:8px;" onclick="saveWeeklySchedule()">儲存排班時程</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const PET_DATABASE = {
+            dragon: {
+                name: "數碼守護龍",
+                stages: [
+                    { minExp: 0, title: "神祕幼龍蛋", emoji: "🥚", speech: "（靜悄悄的...蛋裡好像有微弱的心跳聲）" },
+                    { minExp: 50, title: "貪吃幼年期 (初階)", emoji: "🦖", speech: "主人！我想要更多亮晶晶的星星當點心！" },
+                    { minExp: 150, title: "熱血成長期 (中階)", emoji: "🐉", speech: "看我的儲蓄火焰！我們距離夢想火箭不遠了！" },
+                    { minExp: 400, title: "鋼鐵成熟期 (最終型態)", emoji: "🐲", speech: "守護主人的財富是我的終身使命！衝啊！" }
+                ]
+            },
+            cat: {
+                name: "招財幸運貓",
+                stages: [
+                    { minExp: 0, title: "條紋斑點蛋", emoji: "🐱", speech: "（喵～裡面好像有毛茸茸的東西在動）" },
+                    { minExp: 50, title: "撒嬌小奶貓 (初階)", emoji: "🐱", speech: "主人辛苦了！摸摸我，一起賺星星吧～" },
+                    { minExp: 150, title: "探險紳士貓 (中階)", emoji: "🎩", speech: "叮咚！我聞到了存簿利息增加的香味！" },
+                    { minExp: 400, title: "千客萬來招財貓 (最終型態)", emoji: "🐈", speech: "招財進寶！有我金幣大師在，絕對不浪費星星！" }
+                ]
+            },
+            slime: {
+                name: "魔法果凍史萊姆",
+                stages: [
+                    { minExp: 0, title: "彩色泡泡蛋", emoji: "🧼", speech: "（軟綿綿的...感覺像一顆水球）" },
+                    { minExp: 50, title: "水滴小果凍 (初階)", emoji: "💧", speech: "波吉波吉！完成任務時我就會長大一點點唷！" },
+                    { minExp: 150, title: "魔法盾牌怪 (中階)", emoji: "🛡️", speech: "我會化身防禦盾，幫你擋住想亂花錢的衝動！" },
+                    { minExp: 400, title: "星光守護精靈 (最終型態)", emoji: "✨", speech: "閃耀吧！我們攜手灌注的夢想火箭即將升空！" }
+                ]
+            }
+        };
+
+        let globalData = {
+            currentKid: "寶弟",
+            kids: {
+                "寶弟": {
+                    walletStars: 79,
+                    bankStars: 20,
+                    currentPetId: "dragon",
+                    petBackpack: { dragon: 120, cat: 0, slime: 0 },
+                    rocketTarget: { name: "積木組", cost: 300, status: "active" },
+                    lastInterestWeek: "", 
+                    taskPool: [
+                        { id: "t1", name: "自主整理摺被子", icon: "🛏️", reward: 2 },
+                        { id: "t2", name: "作業完整寫完", icon: "✏️", reward: 12 },
+                        { id: "t3", name: "幫忙飯後洗碗盤", icon: "🥣", reward: 4 }
+                    ],
+                    schedule: { "t1": [1,2,3,4,5,6,7], "t2": [1,2,3,4,5,7], "t3": [6,7] },
+                    shopItems: [
+                        { id: "s1", name: "看平板打電動 30分鐘", icon: "🎮", cost: 15 },
+                        { id: "s2", name: "週末吃冰淇淋一球", icon: "🍦", cost: 20 }
+                    ],
+                    dailyRecords: {}, 
+                    ledger: [
+                        { date: "2026-06-21", amount: 24, reason: "基礎開戶儲蓄點數", type: "in" },
+                        { date: "2026-06-28", amount: -15, reason: "購買道具: 看平板打電動 30分鐘", type: "out" },
+                        { date: "2026-06-28", amount: 12, reason: "完成任務: 作業完整寫完", type: "in" }
+                    ]
+                }
+            }
+        };
+
+        let myChart = null;
+
+        function getYearWeekString() {
+            const d = new Date();
+            const date = new Date(d.getTime());
+            date.setHours(0, 0, 0, 0);
+            date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+            const week1 = new Date(date.getFullYear(), 0, 4);
+            const weekNum = 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+            return `${date.getFullYear()}-W${weekNum}`;
+        }
+
+        window.onload = function() {
+            const saved = localStorage.getItem('kids_bank_layout_v17');
+            if(saved) { try { globalData = JSON.parse(saved); } catch(e){} }
+            
+            Object.keys(globalData.kids).forEach(k => {
+                let kd = globalData.kids[k];
+                if (!kd.currentPetId) kd.currentPetId = "dragon";
+                if (!kd.petBackpack) {
+                    kd.petBackpack = { dragon: kd.walletStars + kd.bankStars, cat: 0, slime: 0 };
+                }
+                if (kd.lastInterestWeek === undefined) kd.lastInterestWeek = "";
+            });
+
+            setDefaultDateRange();
+            refreshUi();
+        };
+
+        function saveToStorage() {
+            localStorage.setItem('kids_bank_layout_v17', JSON.stringify(globalData));
+        }
+
+        function getTodayDateStr() {
+            const d = new Date();
+            let m = '' + (d.getMonth() + 1), day = '' + d.getDate(), y = d.getFullYear();
+            if (m.length < 2) m = '0' + m; if (day.length < 2) day = '0' + day;
+            const weekDays = ["日", "一", "二", "三", "四", "五", "六"];
+            return `${y}-${m}-${day} (${weekDays[d.getDay()]})`;
+        }
+
+        function getPureDateStr() { return getTodayDateStr().substring(0, 10); }
+
+        function initTodayTasks() {
+            const kidData = globalData.kids[globalData.currentKid];
+            const pDate = getPureDateStr();
+            if (!kidData.dailyRecords[pDate]) {
+                let dNum = new Date().getDay(); if(dNum===0) dNum=7;
+                const todayList = [];
+                kidData.taskPool.forEach(t => {
+                    if ((kidData.schedule[t.id] || []).includes(dNum)) {
+                        todayList.push({ id: t.id, name: t.name, icon: t.icon, reward: t.reward, completed: false });
+                    }
+                });
+                kidData.dailyRecords[pDate] = todayList;
+                saveToStorage();
+            }
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.getElementById('btn-tab-' + tabId).classList.add('active');
+            document.getElementById('tab-' + tabId).classList.add('active');
+            if (tabId === 'bank') renderReportSection();
+        }
+
+        function appendLedger(kidData, amount, reason, type) {
+            if(!kidData.ledger) kidData.ledger = [];
+            kidData.ledger.push({ date: getPureDateStr(), amount: amount, reason: reason, type: type });
+        }
+
+        function refreshUi() {
+            const kidData = globalData.kids[globalData.currentKid];
+            if(!kidData) return;
+            initTodayTasks();
+
+            document.getElementById('topKidGreeting').innerText = `嗨，${globalData.currentKid}！`;
+            document.getElementById('topTodayDateStr').innerText = `🗓️ ${getTodayDateStr()}`;
+            document.getElementById('topWalletStars').innerText = kidData.walletStars;
+            document.getElementById('topBankStars').innerText = kidData.bankStars;
+
+            renderRocket(kidData);
+            renderTasks(kidData);
+            renderStore(kidData);
+            
+            const dayNum = new Date().getDay(); 
+            const currentWeekStr = getYearWeekString();
+            const btnInterest = document.getElementById('btnClaimInterest');
+
+            if (dayNum !== 0) {
+                btnInterest.disabled = true;
+                btnInterest.innerText = "限週日領取";
+            } else if (kidData.lastInterestWeek === currentWeekStr) {
+                btnInterest.disabled = true;
+                btnInterest.innerText = "本週已領取";
+            } else {
+                btnInterest.disabled = false;
+                btnInterest.innerText = "領取利息";
+            }
+
+            document.getElementById('estimatedInterest').innerText = `(目前可領: ${Math.ceil(kidData.bankStars * 0.05)} 顆 ⭐)`;
+        }
+
+        function renderRocket(kidData) {
+            const t = kidData.rocketTarget;
+            const bar = document.getElementById('rocketBar');
+            const actionZone = document.getElementById('rocketActionZone');
+            if(!t || t.name==="") {
+                document.getElementById('rocketTargetName').innerText = "🚀 圓夢火箭計畫：尚未設定目標";
+                bar.style.width = "0%"; return;
+            }
+            document.getElementById('rocketTargetName').innerText = `我的圓夢火箭計畫 (目標：${t.name})`;
+            document.getElementById('rocketTargetCost').innerText = `${t.cost} ⭐`;
+            
+            let pct = Math.floor((kidData.bankStars / t.cost) * 100); if(pct>100) pct=100;
+            bar.style.width = `${pct}%`;
+            document.getElementById('rocketProgressText').innerText = `儲蓄進度：${pct}% (${kidData.bankStars}/${t.cost})`;
+
+            if(kidData.bankStars >= t.cost) {
+                document.getElementById('rocketRemainingText').innerText = `🎉 星星充能已達標！可以發射火箭囉！`;
+                if(t.status === 'active') {
+                    actionZone.innerHTML = `<button class="btn btn-success" onclick="launchRocket(${t.cost})">🔥 啟動火箭發射圓夢！</button>`;
+                } else {
+                    actionZone.innerHTML = `<b>✨ 本計畫已順利圓夢！</b>`;
+                }
+            } else {
+                document.getElementById('rocketRemainingText').innerText = `還差 ${t.cost - kidData.bankStars} 顆存簿星星達標！`;
+                actionZone.innerHTML = "";
+            }
+        }
+
+        function launchRocket(cost) {
+            const kidData = globalData.kids[globalData.currentKid];
+            if(confirm(`確認要從存簿扣除 ${cost} 顆星星兌換【${kidData.rocketTarget.name}】嗎？`)) {
+                kidData.bankStars -= cost;
+                kidData.rocketTarget.status = 'completed';
+                
+                let petId = kidData.currentPetId || "dragon";
+                kidData.petBackpack[petId] = Math.max(0, (kidData.petBackpack[petId] || 0) - cost);
+
+                appendLedger(kidData, -cost, `🚀 火箭圓夢兌換: ${kidData.rocketTarget.name}`, 'out');
+                saveToStorage(); confetti({ particleCount: 150 }); refreshUi();
+            }
+        }
+
+        function renderTasks(kidData) {
+            const pDate = getPureDateStr();
+            const list = kidData.dailyRecords[pDate] || [];
+            const container = document.getElementById('todayTaskList'); container.innerHTML = "";
+            
+            let done = 0;
+            list.forEach((t, idx) => {
+                if(t.completed) done++;
+                let isRegular = (kidData.schedule[t.id] || []).length >= 5;
+                let tag = isRegular ? `<span class="task-tag tag-regular">⚡ 常規</span>` : `<span class="task-tag tag-challenge">🔥 挑戰</span>`;
+                container.innerHTML += `
+                    <div class="task-item">
+                        <div class="task-left">
+                            <input type="checkbox" class="task-cb" ${t.completed?'checked':''} onchange="toggleTask(${idx})">
+                            <span>${t.icon} ${t.name} ${tag}</span>
+                        </div>
+                        <div style="font-weight:bold; color:var(--accent-orange);">+${t.reward} ⭐</div>
+                    </div>
+                `;
+            });
+            document.getElementById('completionRateText').innerText = list.length ? `${Math.floor(done/list.length*100)}% (${done}/${list.length})` : "0%";
+            
+            let petId = kidData.currentPetId || "dragon";
+            let currentExp = kidData.petBackpack[petId] || 0;
+            let petConfig = PET_DATABASE[petId] || PET_DATABASE.dragon;
+            
+            let stg = petConfig.stages[0]; 
+            petConfig.stages.forEach(s => { if(currentExp >= s.minExp) stg = s; });
+
+            document.getElementById('petNameStage').innerText = `${petConfig.name} [${stg.title}] (經驗值:${currentExp}⭐)`;
+            document.getElementById('petSpeechBubble').innerText = stg.speech;
+            document.getElementById('petAvatarBox').innerText = stg.emoji;
+        }
+
+        function toggleTask(idx) {
+            const kidData = globalData.kids[globalData.currentKid];
+            const pDate = getPureDateStr();
+            const t = kidData.dailyRecords[pDate][idx];
+            t.completed = !t.completed;
+            
+            let petId = kidData.currentPetId || "dragon";
+            if(!kidData.petBackpack) kidData.petBackpack = {};
+
+            if(t.completed) {
+                kidData.walletStars += t.reward;
+                kidData.petBackpack[petId] = (kidData.petBackpack[petId] || 0) + t.reward;
+                appendLedger(kidData, t.reward, `完成任務: ${t.name}`, 'in');
+            } else {
+                kidData.walletStars = Math.max(0, kidData.walletStars - t.reward);
+                kidData.petBackpack[petId] = Math.max(0, (kidData.petBackpack[petId] || 0) - t.reward);
+                appendLedger(kidData, -t.reward, `取消完成任務: ${t.name}`, 'out');
+            }
+            saveToStorage(); refreshUi();
+        }
+
+        function renderStore(kidData) {
+            const list = kidData.dailyRecords[getPureDateStr()] || [];
+            const allDone = list.length > 0 && list.every(r => r.completed);
+            document.getElementById('storeLockOverlay').style.display = allDone ? "none" : "flex";
+
+            const grid = document.getElementById('storeGridContainer');
+            grid.querySelectorAll('.store-card').forEach(c=>c.remove());
+            kidData.shopItems.forEach(item => {
+                grid.innerHTML += `
+                    <div class="store-card">
+                        <div><div style="font-size:30px;">${item.icon}</div><strong>${item.name}</strong></div>
+                        <button class="btn" style="background:var(--accent-orange); margin-top:5px; padding:5px;" onclick="buyItem('${item.id}', ${item.cost})">🪙 ${item.cost} ⭐</button>
+                    </div>
+                `;
+            });
+        }
+
+        function buyItem(id, cost) {
+            const kidData = globalData.kids[globalData.currentKid];
+            if(kidData.walletStars < cost) { alert("錢包星星不夠唷！"); return; }
+            if(confirm("確認要兌換商品嗎？這將會扣除當前寵物的部分經驗值喔！")) {
+                kidData.walletStars -= cost;
+                
+                let petId = kidData.currentPetId || "dragon";
+                kidData.petBackpack[petId] = Math.max(0, (kidData.petBackpack[petId] || 0) - cost);
+
+                const itm = kidData.shopItems.find(s=>s.id===id);
+                appendLedger(kidData, -cost, `商店兌換: ${itm?itm.name:''}`, 'out');
+                saveToStorage(); refreshUi(); alert("兌換成功！快找家長領取吧！");
+            }
+        }
+
+        function handleAtmAction(action) {
+            const kidData = globalData.kids[globalData.currentKid];
+            const amt = parseInt(document.getElementById('atmAmount').value) || 0;
+            if(amt <= 0) return;
+
+            if(action === 'deposit') {
+                if(kidData.walletStars < amt) { alert("錢包餘額不足"); return; }
+                kidData.walletStars -= amt; kidData.bankStars += amt;
+                appendLedger(kidData, amt, "ATM 存入存款項目", 'atm');
+            } else {
+                if(kidData.bankStars < amt) { alert("存簿餘額不足"); return; }
+                kidData.bankStars -= amt; kidData.walletStars += amt;
+                appendLedger(kidData, -amt, "ATM 提領現鈔項目", 'atm');
+            }
+            saveToStorage(); refreshUi();
+        }
+
+        function claimWeeklyInterest() {
+            const kidData = globalData.kids[globalData.currentKid];
+            if(kidData.bankStars <= 0) { alert("目前存簿內沒有資產，無法產生魔法利息唷！"); return; }
+            
+            const dayNum = new Date().getDay();
+            if (dayNum !== 0) { alert("今天不是魔法週日，利息還在釀造中，請週日再來領取！"); return; }
+            
+            const currentWeekStr = getYearWeekString();
+            if (kidData.lastInterestWeek === currentWeekStr) { alert("本週的利息已經領過囉！請等下個週日。"); return; }
+
+            let bonus = Math.ceil(kidData.bankStars * 0.05);
+            kidData.bankStars += bonus;
+            
+            kidData.lastInterestWeek = currentWeekStr;
+
+            appendLedger(kidData, bonus, "週日複利利息發放", 'in');
+            saveToStorage(); refreshUi(); alert(`恭喜領取利息 +${bonus} 顆星星！按鍵已鎖定，下週日將自動解鎖。`);
+        }
+
+        function resetInterestStatus() {
+            const kidData = globalData.kids[globalData.currentKid];
+            kidData.lastInterestWeek = "";
+            saveToStorage(); refreshUi();
+            alert(`🔓 已手動解除 ${globalData.currentKid} 的利息領取限制！如果今天是週日，按鈕已重新開放。`);
+        }
+
+        function setDefaultDateRange() {
+            let end = new Date(); let start = new Date(); start.setDate(start.getDate() - 7);
+            document.getElementById('filterEndDate').value = end.toISOString().substring(0,10);
+            document.getElementById('filterStartDate').value = start.toISOString().substring(0,10);
+        }
+
+        function renderReportSection() {
+            const kidData = globalData.kids[globalData.currentKid];
+            const sDate = document.getElementById('filterStartDate').value;
+            const eDate = document.getElementById('filterEndDate').value;
+            if(!kidData.ledger) kidData.ledger = [];
+
+            const filtered = kidData.ledger.filter(l => l.date >= sDate && l.date <= eDate);
+            
+            let totalIn = 0; let totalOut = 0;
+            filtered.forEach(l => {
+                if(l.type === 'in' || (l.type === 'atm' && l.amount > 0)) totalIn += Math.abs(l.amount);
+                if(l.type === 'out' || (l.type === 'atm' && l.amount < 0)) totalOut += Math.abs(l.amount);
+            });
+            document.getElementById('statTotalIn').innerText = totalIn;
+            document.getElementById('statTotalOut').innerText = totalOut;
+
+            const logContainer = document.getElementById('historyLogListContainer');
+            logContainer.innerHTML = "";
+            const displayList = [...filtered].reverse();
+            if(displayList.length === 0) {
+                logContainer.innerHTML = `<div style="text-align:center; padding:15px; color:var(--text-muted); font-size:13px;">此區間無變動明細</div>`;
+            } else {
+                displayList.forEach(log => {
+                    let itemClass = `type-${log.type}`;
+                    let sign = log.amount >= 0 ? `+${log.amount}` : `${log.amount}`;
+                    let amtClass = log.amount >= 0 ? 'amt-pos' : 'amt-neg';
+                    logContainer.innerHTML += `
+                        <div class="history-item ${itemClass}">
+                            <div class="history-details">
+                                <span class="history-reason">${log.amount < 0 ? '❌':'✔️'} ${log.reason}</span>
+                                <span class="history-date">${log.date}</span>
+                            </div>
+                            <span class="history-amt ${amtClass}">${sign} ⭐</span>
+                        </div>
+                    `;
+                });
+            }
+
+            // 💡 修正與優化部分：採用「倒推法」精確計算當天結束時的【錢包+存簿】真實總資產
+            let uniqueDates = [...new Set(filtered.map(f => f.date))].sort();
+            let chartPoints = uniqueDates.map(d => {
+                let totalAfterD = 0;
+                // 找出歷史總帳本中，所有在該日期「之後」發生的純外部流入與流出
+                kidData.ledger.forEach(i => {
+                    if (i.date > d) {
+                        if (i.type === 'in' || i.type === 'out') {
+                            totalAfterD += i.amount; 
+                        }
+                    }
+                });
+                // 當前即時總資產（錢包 + 存簿的最新即時數值）
+                let currentTotalAsset = (kidData.walletStars || 0) + (kidData.bankStars || 0);
+                // 該日結束時的歷史資產總額 = 當前最新總資產 - 該日之後的所有變動量
+                return { x: d.substring(5), y: Math.max(0, currentTotalAsset - totalAfterD) };
+            });
+
+            const ctx = document.getElementById('assetChart').getContext('2d');
+            if(myChart) myChart.destroy();
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartPoints.map(p=>p.x),
+                    datasets: [{ 
+                        label: '總資產趨勢（存簿+錢包）', // 💡 改為更符合實際的提示名稱
+                        data: chartPoints.map(p=>p.y), 
+                        borderColor: '#3498db', 
+                        backgroundColor: 'rgba(52,152,219,0.1)', 
+                        fill: true, 
+                        tension: 0.1, 
+                        borderWidth: 3 
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+            });
+        }
+
+        function openMgmtModal() {
+            document.getElementById('mgmtModal').classList.add('active');
+            const kidData = globalData.kids[globalData.currentKid];
+            
+            document.getElementById('overrideWallet').value = kidData.walletStars;
+            document.getElementById('overrideBank').value = kidData.bankStars;
+            document.getElementById('mgmtRocketName').value = kidData.rocketTarget?kidData.rocketTarget.name:"";
+            document.getElementById('mgmtRocketCost').value = kidData.rocketTarget?kidData.rocketTarget.cost:100;
+            document.getElementById('renameKidInput').value = globalData.currentKid;
+
+            const petSel = document.getElementById('mgmtPetSelector'); petSel.innerHTML = "";
+            Object.keys(PET_DATABASE).forEach(pid => {
+                let selected = (pid === kidData.currentPetId) ? "selected" : "";
+                let exp = kidData.petBackpack[pid] || 0;
+                petSel.innerHTML += `<option value="${pid}" ${selected}>${PET_DATABASE[pid].name} (目前累積: ${exp} EXP)</option>`;
+            });
+
+            renderMgmtLists();
+        }
+
+        function renderMgmtLists() {
+            const kidData = globalData.kids[globalData.currentKid];
+            
+            const back = document.getElementById('kidSelectorBackyard'); back.innerHTML = "";
+            Object.keys(globalData.kids).forEach(k => {
+                back.innerHTML += `<button class="btn" style="padding:5px 10px; font-size:13px; background:${k===globalData.currentKid?'var(--accent-blue)':'#ccc'}" onclick="globalData.currentKid='${k}'; saveToStorage(); refreshUi(); openMgmtModal();">👦 ${k}</button>`;
+            });
+
+            const taskContainer = document.getElementById('mgmtTaskListContainer'); taskContainer.innerHTML = "";
+            kidData.taskPool.forEach(t => {
+                taskContainer.innerHTML += `
+                    <div class="mgmt-list-item">
+                        <span>${t.icon} <b>${t.name}</b> (+${t.reward}⭐)</span>
+                        <button class="btn-del-item" onclick="deleteTaskFromPool('${t.id}')">✕ 刪除</button>
+                    </div>
+                `;
+            });
+
+            const shopContainer = document.getElementById('mgmtShopListContainer'); shopContainer.innerHTML = "";
+            kidData.shopItems.forEach(s => {
+                shopContainer.innerHTML += `
+                    <div class="mgmt-list-item">
+                        <span>${s.icon} <b>${s.name}</b> (${s.cost}⭐)</span>
+                        <button class="btn-del-item" onclick="deleteShopItemFromPool('${s.id}')">✕ 刪除</button>
+                    </div>
+                `;
+            });
+
+            const tbody = document.getElementById('scheduleTableBody'); tbody.innerHTML = "";
+            kidData.taskPool.forEach(task => {
+                let html = `<td style="text-align:left; font-weight:bold;">${task.icon} ${task.name}</td>`;
+                for(let i=1; i<=7; i++) {
+                    let chk = (kidData.schedule[task.id]||[]).includes(i)?'checked':'';
+                    html += `<td><input type="checkbox" data-tid="${task.id}" data-day="${i}" ${chk}></td>`;
+                }
+                tbody.innerHTML += `<tr>${html}</tr>`;
+            });
+        }
+
+        function changeCurrentPet() {
+            const kidData = globalData.kids[globalData.currentKid];
+            const selectedPetId = document.getElementById('mgmtPetSelector').value;
+            
+            kidData.currentPetId = selectedPetId;
+            if (kidData.petBackpack[selectedPetId] === undefined) {
+                kidData.petBackpack[selectedPetId] = 0;
+            }
+            
+            saveToStorage(); refreshUi(); closeMgmtModal();
+            alert(`🐾 成功幫 ${globalData.currentKid} 更換陪伴寵物為【${PET_DATABASE[selectedPetId].name}】！`);
+        }
+
+        function renameCurrentKid() {
+            const oldName = globalData.currentKid;
+            const newName = document.getElementById('renameKidInput').value.trim();
+            if(!newName || oldName === newName) return;
+            if(globalData.kids[newName]) { alert("❌ 此姓名已存在其他帳號中！"); return; }
+
+            globalData.kids[newName] = globalData.kids[oldName];
+            delete globalData.kids[oldName];
+            globalData.currentKid = newName;
+            
+            saveToStorage(); refreshUi(); renderMgmtLists();
+            alert(`📝 已成功將名稱修改為 【${newName}】！`);
+        }
+
+        function addNewKid() {
+            let name = document.getElementById('newKidName').value.trim(); if(!name) return;
+            if(globalData.kids[name]) { alert("此帳號名字已重複囉！"); return; }
+            
+            globalData.kids[name] = { 
+                walletStars: 0, 
+                bankStars: 0, 
+                currentPetId: "dragon",
+                petBackpack: { dragon: 0, cat: 0, slime: 0 },
+                rocketTarget: { name: "新目標", cost: 100, status: "active" }, 
+                lastInterestWeek: "", 
+                taskPool: [{ id: "t1", name: "清理空間", icon: "🧹", reward: 5 }], 
+                schedule: { "t1": [1,2,3,4,5,6,7] }, 
+                shopItems: [{ id: "s1", name: "玩遊戲", icon: "🎮", cost: 15 }], 
+                dailyRecords: {}, 
+                ledger: [] 
+            };
+            
+            globalData.currentKid = name; document.getElementById('newKidName').value="";
+            saveToStorage(); refreshUi(); renderMgmtLists();
+        }
+
+        function addTaskToPool() {
+            const kidData = globalData.kids[globalData.currentKid];
+            const icon = document.getElementById('newTaskIcon').value.trim() || "📝";
+            const name = document.getElementById('newTaskName').value.trim();
+            const reward = parseInt(document.getElementById('newTaskReward').value) || 2;
+            if(!name) { alert("請填寫任務名稱"); return; }
+
+            const newId = "t_" + Date.now();
+            kidData.taskPool.push({ id: newId, name: name, icon: icon, reward: reward });
+            kidData.schedule[newId] = [1,2,3,4,5,6,7];
+
+            document.getElementById('newTaskName').value = "";
+            delete kidData.dailyRecords[getPureDateStr()];
+            saveToStorage(); refreshUi(); renderMgmtLists();
+        }
+
+        function deleteTaskFromPool(id) {
+            const kidData = globalData.kids[globalData.currentKid];
+            kidData.taskPool = kidData.taskPool.filter(t => t.id !== id);
+            delete kidData.schedule[id];
+            delete kidData.dailyRecords[getPureDateStr()];
+            saveToStorage(); refreshUi(); renderMgmtLists();
+        }
+
+        function addShopItem() {
+            const kidData = globalData.kids[globalData.currentKid];
+            const icon = document.getElementById('newShopIcon').value.trim() || "🎮";
+            const name = document.getElementById('newShopName').value.trim();
+            const cost = parseInt(document.getElementById('newShopCost').value) || 10;
+            if(!name) { alert("請填寫商品名稱"); return; }
+
+            kidData.shopItems.push({ id: "s_" + Date.now(), name: name, icon: icon, cost: cost });
+            document.getElementById('newShopName').value = "";
+            saveToStorage(); refreshUi(); renderMgmtLists();
+        }
+
+        function deleteShopItemFromPool(id) {
+            const kidData = globalData.kids[globalData.currentKid];
+            kidData.shopItems = kidData.shopItems.filter(s => s.id !== id);
+            saveToStorage(); refreshUi(); renderMgmtLists();
+        }
+
+        function saveAssetOverride() {
+            const kidData = globalData.kids[globalData.currentKid];
+            kidData.walletStars = parseInt(document.getElementById('overrideWallet').value)||0;
+            kidData.bankStars = parseInt(document.getElementById('overrideBank').value)||0;
+            appendLedger(kidData, 0, "家長手工校正資產帳目平衡", 'in');
+            saveToStorage(); refreshUi(); closeMgmtModal();
+        }
+
+        function saveRocketTarget() {
+            const kidData = globalData.kids[globalData.currentKid];
+            kidData.rocketTarget = { name: document.getElementById('mgmtRocketName').value, cost: parseInt(document.getElementById('mgmtRocketCost').value)||100, status: 'active' };
+            saveToStorage(); refreshUi(); closeMgmtModal();
+        }
+
+        function saveWeeklySchedule() {
+            const kidData = globalData.kids[globalData.currentKid];
+            kidData.taskPool.forEach(t => kidData.schedule[t.id] = []);
+            document.querySelectorAll('#scheduleTableBody input[type="checkbox"]').forEach(cb => {
+                if(cb.checked) {
+                    let tid = cb.getAttribute('data-tid'); let day = parseInt(cb.getAttribute('data-day'));
+                    if(kidData.schedule[tid]) kidData.schedule[tid].push(day);
+                }
+            });
+            delete kidData.dailyRecords[getPureDateStr()]; saveToStorage(); refreshUi(); closeMgmtModal(); alert("排班時程已順利儲存！");
+        }
+
+        function closeMgmtModal() { document.getElementById('mgmtModal').classList.remove('active'); }
+    </script>
+</body>
+</html>
