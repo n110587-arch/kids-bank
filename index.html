@@ -288,19 +288,22 @@
                     <div id="todayTaskList"></div>
                 </div>
 
-                <div class="card store-box">
-                    <h2 style="margin-top:0; font-size:17px;">🛒 星星魔法商店</h2>
-                    <div class="store-grid" id="storeGridContainer">
-                        <div class="store-lock-overlay" id="storeLockOverlay">
-                            <span style="font-size: 36px; margin-bottom: 5px;">🔒</span>
-                            <h3 style="margin:0; font-size:15px;">商店封印中</h3>
-                            <p style="font-size:12px; color:var(--text-muted); padding:0 10px; margin:4px 0 0 0;">必須「完成今日所有任務」才能解鎖消費！</p>
-                        </div>
-                    </div>
-                </div>
+<div id="encouragementMsg" style="margin-top:15px; padding:10px; text-align:center; font-weight:bold; color:var(--accent-blue); background:#eef7ff; border-radius:10px;">
+    準備好開始今天的挑戰了嗎？
+</div>
+
+<div id="rewardZone" style="margin-top:15px; text-align:center;">
+    <button id="btnDailyReward" class="btn btn-success" style="width:100%; display:none;" onclick="giveDailyRandomStars()">
+        🎁 領取今日任務獎勵 (隨機 1~3 ⭐)
+    </button>
+</div>                
+            </div>
+        </div> <div id="tab-shop" class="panel">
+            <div class="card">
+                <h2 style="margin-top:0; font-size:17px;">🛒 魔法商店</h2>
+                <div class="store-grid" id="storeGridContainer"></div>
             </div>
         </div>
-
         <div id="tab-bank" class="panel">
             <div class="card">
                 <h2 style="margin-top:0; font-size:17px;">🏧 魔法智慧儲蓄 ATM</h2>
@@ -352,9 +355,11 @@
     </div>
 
     <div class="nav-tabs">
-        <button class="tab-btn active" id="btn-tab-adventure" onclick="switchTab('adventure')"><span>🗺️</span>冒險任務</button>
-        <button class="tab-btn" id="btn-tab-bank" onclick="switchTab('bank')"><span>🏦</span>魔法銀行</button>
-    </div>
+    <button class="tab-btn active" id="btn-tab-adventure" onclick="switchTab('adventure')"><span>🗺️</span>冒險任務</button>
+    <button class="tab-btn" id="btn-tab-shop" onclick="switchTab('shop')"><span>🛒</span>魔法商店</button>
+    <button class="tab-btn" id="btn-tab-bank" onclick="switchTab('bank')"><span>🏦</span>星星銀行</button>
+
+</div>
 
     <div class="modal" id="mgmtModal">
     <div class="modal-content">
@@ -662,39 +667,68 @@
         }
 
         function renderTasks(kidData) {
-            const pDate = getPureDateStr();
-            const list = kidData.dailyRecords[pDate] || [];
-            const container = document.getElementById('todayTaskList'); container.innerHTML = "";
-            
-            let done = 0;
-            list.forEach((t, idx) => {
-                if(t.completed) done++;
-                let isRegular = (kidData.schedule[t.id] || []).length >= 5;
-                let tag = isRegular ? `<span class="task-tag tag-regular">⚡ 常規</span>` : `<span class="task-tag tag-challenge">🔥 挑戰</span>`;
-                container.innerHTML += `
-                    <div class="task-item">
-                        <div class="task-left">
-                            <input type="checkbox" class="task-cb" ${t.completed?'checked':''} onchange="toggleTask(${idx})">
-                            <span>${t.icon} ${t.name} ${tag}</span>
-                        </div>
-                        <div style="font-weight:bold; color:var(--accent-orange);">+${t.reward} ⭐</div>
-                    </div>
-                `;
-            });
-            document.getElementById('completionRateText').innerText = list.length ? `${Math.floor(done/list.length*100)}% (${done}/${list.length})` : "0%";
-            
-            let petId = kidData.currentPetId || "dragon";
-            let currentExp = kidData.petBackpack[petId] || 0;
-            let petConfig = PET_DATABASE[petId] || PET_DATABASE.dragon;
-            
-            let stg = petConfig.stages[0]; 
-            petConfig.stages.forEach(s => { if(currentExp >= s.minExp) stg = s; });
+    const pDate = getPureDateStr();
+    const list = kidData.dailyRecords[pDate] || [];
+    const container = document.getElementById('todayTaskList'); 
+    container.innerHTML = "";
+    
+    let done = 0;
+    list.forEach((t, idx) => {
+        if(t.completed) done++;
+        let isRegular = (kidData.schedule[t.id] || []).length >= 5;
+        let tag = isRegular ? `<span class="task-tag tag-regular">⚡ 常規</span>` : `<span class="task-tag tag-challenge">🔥 挑戰</span>`;
+        container.innerHTML += `
+            <div class="task-item">
+                <div class="task-left">
+                    <input type="checkbox" class="task-cb" ${t.completed?'checked':''} onchange="toggleTask(${idx})">
+                    <span>${t.icon} ${t.name} ${tag}</span>
+                </div>
+                <div style="font-weight:bold; color:var(--accent-orange);">+${t.reward} ⭐</div>
+            </div>
+        `;
+    });
+    
+    // 1. 更新完成比例
+    document.getElementById('completionRateText').innerText = list.length ? `${Math.floor(done/list.length*100)}% (${done}/${list.length})` : "0%";
+    
+    // 2. 新增：鼓勵語句邏輯
+   const msg = document.getElementById('encouragementMsg');
+    
+    if (list.length > 0 && done === list.length) {
+        // 完成所有任務
+        msg.innerText = "太棒了吧，你完成所有任務了！請領取神秘小禮。";
+    } else if (list.length > 0 && (list.length - done === 1)) {
+        // 只剩下 1 個任務
+        msg.innerText = "加油，剩下 1 個任務就完成了！！";
+    } else if (done >= 1) {
+        // 完成 1 項以上 (且未全部完成)
+        msg.innerText = "好的開始是成功的一半";
+    } else {
+        // 尚未完成任何任務 (包含 done === 0)
+        msg.innerText = "準備好開始今天的挑戰了嗎？";
+    }
 
-            document.getElementById('petNameStage').innerText = `${petConfig.name} [${stg.title}] (經驗值:${currentExp}⭐)`;
-            document.getElementById('petSpeechBubble').innerText = stg.speech;
-            document.getElementById('petAvatarBox').innerText = stg.emoji;
-        }
+    // 3. 新增：領取獎勵按鈕邏輯 (檢查是否完成且今日尚未領取)
+    const btnReward = document.getElementById('btnDailyReward');
+    // 假設 kidData 內有 dailyRewardClaimed 欄位來記錄領取日期
+    if (list.length > 0 && done === list.length && kidData.dailyRewardClaimed !== pDate) {
+        btnReward.style.display = "block";
+    } else {
+        btnReward.style.display = "none";
+    }
 
+    // --- 以下為原本寵物相關邏輯 (保持不變) ---
+    let petId = kidData.currentPetId || "dragon";
+    let currentExp = kidData.petBackpack[petId] || 0;
+    let petConfig = PET_DATABASE[petId] || PET_DATABASE.dragon;
+    
+    let stg = petConfig.stages[0]; 
+    petConfig.stages.forEach(s => { if(currentExp >= s.minExp) stg = s; });
+
+    document.getElementById('petNameStage').innerText = `${petConfig.name} [${stg.title}] (經驗值:${currentExp}⭐)`;
+    document.getElementById('petSpeechBubble').innerText = stg.speech;
+    document.getElementById('petAvatarBox').innerText = stg.emoji;
+}
         function toggleTask(idx) {
             const kidData = globalData.kids[globalData.currentKid];
             const pDate = getPureDateStr();
@@ -717,22 +751,21 @@
         }
 
         function renderStore(kidData) {
-            const list = kidData.dailyRecords[getPureDateStr()] || [];
-            const allDone = list.length > 0 && list.every(r => r.completed);
-            document.getElementById('storeLockOverlay').style.display = allDone ? "none" : "flex";
-
-            const grid = document.getElementById('storeGridContainer');
-            grid.querySelectorAll('.store-card').forEach(c=>c.remove());
-            kidData.shopItems.forEach(item => {
-                grid.innerHTML += `
-                    <div class="store-card">
-                        <div><div style="font-size:30px;">${item.icon}</div><strong>${item.name}</strong></div>
-                        <button class="btn" style="background:var(--accent-orange); margin-top:5px; padding:5px;" onclick="buyItem('${item.id}', ${item.cost})">🪙 ${item.cost} ⭐</button>
-                    </div>
-                `;
-            });
-        }
-
+    // 移除原本檢查任務完成度與鎖定遮罩的邏輯
+    // 這樣商店就能隨時進入消費，不再受任務狀態限制
+    
+    const grid = document.getElementById('storeGridContainer');
+    grid.innerHTML = ""; // 直接清空並重新渲染商店內容
+    
+    kidData.shopItems.forEach(item => {
+        grid.innerHTML += `
+            <div class="store-card">
+                <div><div style="font-size:30px;">${item.icon}</div><strong>${item.name}</strong></div>
+                <button class="btn" style="background:var(--accent-orange); margin-top:5px; padding:5px;" onclick="buyItem('${item.id}', ${item.cost})">🪙 ${item.cost} ⭐</button>
+            </div>
+        `;
+    });
+}
         function buyItem(id, cost) {
             const kidData = globalData.kids[globalData.currentKid];
             if(kidData.walletStars < cost) { alert("錢包星星不夠唷！"); return; }
@@ -748,6 +781,18 @@
             }
         }
 
+// 新增此函數
+function giveDailyRandomStars() {
+    const kidData = globalData.kids[globalData.currentKid];
+    const stars = Math.floor(Math.random() * 3) + 1;
+    kidData.walletStars += stars;
+    kidData.dailyRewardClaimed = getPureDateStr();
+    
+    appendLedger(kidData, stars, "每日任務完成獎勵", 'in');
+    saveToStorage();
+    refreshUi();
+    alert(`恭喜獲得 ${stars} 顆隨機星星！`);
+}
         function handleAtmAction(action) {
             const kidData = globalData.kids[globalData.currentKid];
             const amt = parseInt(document.getElementById('atmAmount').value) || 0;
@@ -1114,16 +1159,19 @@ function deleteKid(name) {
                 <li><b>趨勢圖表：</b>於「魔法銀行」查看指定日期區間的收支趨勢與明細。</li>
             </ul>
 
-            <h3 style="color:#2980b9;">三、 寵物系統</h3>
+            <h3 style="color:#2980b9;">三、 寵物系統(優化中)</h3>
             <ul>
                 <li><b>多樣選擇：</b>提供守護龍、幸運貓、果凍史萊姆。</li>
                 <li><b>成長機制：</b>隨任務經驗值成長（共四階段，對應不同對話與外觀），可於設定中心隨時更換。</li>
             </ul>
 
-            <h3 style="color:#2980b9;">四、 任務與排班系統</h3>
+            <h3 style="color:#2980b9;">四、 任務與獎勵系統</h3>
             <ul>
                 <li><b>任務庫設定：</b>添加任務、自定義圖示與星星獎勵。</li>
                 <li><b>一週排班：</b>勾選任務執行日（週一至週日），系統自動顯示今日應完成的清單。</li>
+                <li><b>每日挑戰：</b>系統會根據今日任務完成度提供互動式鼓勵語句，幫助孩子保持挑戰動力。</li>
+                <li><b>每日隨機獎勵：</b>當孩子完成當日所有排定任務時，即可解鎖「領取今日任務獎勵」按鈕，隨機獲得 1~3 顆星星作為額外獎勵，每天只能領取1次。</li>
+
                 <li><b>任務分類定義：</b>
                     <ul>
                 <li><b>常規任務：</b>任務執行日 ≧ 5天/週。</li>
@@ -1132,8 +1180,10 @@ function deleteKid(name) {
 
             <h3 style="color:#2980b9;">五、 商店系統</h3>
             <ul>
-                <li><b>獎勵上架：</b>設定獎勵及其對應的星星成本。</li>
-                <li><b>完成度鎖定：</b>必須完成「今日所有排定任務」才能解鎖商店進行消費。</li>
+                <li><b>獎勵上架：</b>您可以在設定中心靈活管理商店商品，設定名稱、圖示與對應的星星兌換成本。</li>
+                <li><b>消費：</b>孩子能隨時根據存款彈性規劃消費。</li>
+                <li><b>兌換機制：</b>兌換商品時將扣除錢包星星與部分寵物經驗值，建議由家長協助進行後續的實體獎勵交付。</li>
+
             </ul>
 
             <h3 style="color:#2980b9;">六、 利息系統</h3>
