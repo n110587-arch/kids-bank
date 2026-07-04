@@ -228,7 +228,22 @@
 .btn-del-item { background: none; border: none; color: #e74c3c; font-size: 14px; cursor: pointer; font-weight: bold; margin-left: 10px; }
 .mgmt-kid-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding: 5px; border-bottom: 1px solid #eee; }
 
-    </style>
+/* 星星特效容器 */
+.star-particle {
+    position: fixed;
+    font-size: 30px;
+    pointer-events: none;
+    z-index: 9999;
+    animation: starExplode 1s ease-out forwards;
+}
+
+@keyframes starExplode {
+    0% { transform: scale(1) translate(0, 0); opacity: 1; }
+    50% { transform: scale(0.5) translate(var(--tx), var(--ty)); opacity: 0.8; }
+    100% { transform: scale(0.1) translate(var(--tx), var(--ty)); opacity: 0; }
+}   
+
+ </style>
 </head>
 <body>
 
@@ -758,7 +773,7 @@ renderBonusButtons();
         container.innerHTML += `
             <div class="task-item">
                 <div class="task-left">
-                    <input type="checkbox" class="task-cb" ${t.completed?'checked':''} onchange="toggleTask(${idx})">
+                    <input type="checkbox" class="task-cb" ${t.completed?'checked':''} onchange="toggleTask(${idx}, event)">
                     <span>${t.icon} ${t.name} ${tag}</span>
                 </div>
                 <div style="font-weight:bold; color:var(--accent-orange);">+${t.reward} ⭐</div>
@@ -807,27 +822,33 @@ renderBonusButtons();
     document.getElementById('petSpeechBubble').innerText = stg.speech;
     document.getElementById('petAvatarBox').innerText = stg.emoji;
 }
-        function toggleTask(idx) {
-            const kidData = globalData.kids[globalData.currentKid];
-            const pDate = getPureDateStr();
-            const t = kidData.dailyRecords[pDate][idx];
-            t.completed = !t.completed;
-            
-            let petId = kidData.currentPetId || "dragon";
-            if(!kidData.petBackpack) kidData.petBackpack = {};
+      
+function toggleTask(idx, event) { // 注意這裡多了一個 event 參數
+    const kidData = globalData.kids[globalData.currentKid];
+    const pDate = getPureDateStr();
+    const t = kidData.dailyRecords[pDate][idx];
+    t.completed = !t.completed;
+    
+    let petId = kidData.currentPetId || "dragon";
+    if(!kidData.petBackpack) kidData.petBackpack = {};
 
-            if(t.completed) {
-                kidData.walletStars += t.reward;
-                kidData.petBackpack[petId] = (kidData.petBackpack[petId] || 0) + t.reward;
-                appendLedger(kidData, t.reward, `完成任務: ${t.name}`, 'in');
-            } else {
-                kidData.walletStars = Math.max(0, kidData.walletStars - t.reward);
-                kidData.petBackpack[petId] = Math.max(0, (kidData.petBackpack[petId] || 0) - t.reward);
-                appendLedger(kidData, -t.reward, `取消完成任務: ${t.name}`, 'out');
-            }
-            saveToStorage(); refreshUi();
+    if(t.completed) {
+        // --- 加入動畫觸發 ---
+        // event.clientX 和 event.clientY 是點擊當下的螢幕座標
+        if (event) {
+            createStarEffect(event.clientX, event.clientY);
         }
-
+        
+        kidData.walletStars += t.reward;
+        kidData.petBackpack[petId] = (kidData.petBackpack[petId] || 0) + t.reward;
+        appendLedger(kidData, t.reward, `完成任務: ${t.name}`, 'in');
+    } else {
+        kidData.walletStars = Math.max(0, kidData.walletStars - t.reward);
+        kidData.petBackpack[petId] = Math.max(0, (kidData.petBackpack[petId] || 0) - t.reward);
+        appendLedger(kidData, -t.reward, `取消完成任務: ${t.name}`, 'out');
+    }
+    saveToStorage(); refreshUi();
+}
         function renderStore(kidData) {
     // 移除原本檢查任務完成度與鎖定遮罩的邏輯
     // 這樣商店就能隨時進入消費，不再受任務狀態限制
@@ -863,12 +884,19 @@ renderBonusButtons();
 function giveDailyRandomStars() {
     const kidData = globalData.kids[globalData.currentKid];
     const stars = Math.floor(Math.random() * 3) + 1;
+    
+    // --- 在此處加入星星動畫 ---
+    // 將位置設定在畫面中心 (window.innerWidth / 2, window.innerHeight / 2)
+    createStarEffect(window.innerWidth / 2, window.innerHeight / 2);
+    
     kidData.walletStars += stars;
     kidData.dailyRewardClaimed = getPureDateStr();
     
     appendLedger(kidData, stars, "每日任務完成獎勵", 'in');
     saveToStorage();
     refreshUi();
+    
+    // 提示框可以保留，但如果您覺得星星動畫已經夠明顯，也可以考慮把 alert 拿掉
     alert(`恭喜獲得 ${stars} 顆隨機星星！`);
 }
         function handleAtmAction(action) {
@@ -1226,6 +1254,29 @@ function deleteKid(name) {
         saveToStorage(); location.reload();
     }
 }
+
+function createStarEffect(x, y) {
+    const starCount = 15; // 星星數量
+    for (let i = 0; i < starCount; i++) {
+        const star = document.createElement('div');
+        star.innerHTML = '⭐';
+        star.className = 'star-particle';
+        
+        // 隨機噴發路徑
+        const tx = (Math.random() - 0.5) * 400;
+        const ty = (Math.random() - 0.5) * 400;
+        star.style.setProperty('--tx', `${tx}px`);
+        star.style.setProperty('--ty', `${ty}px`);
+        
+        star.style.left = x + 'px';
+        star.style.top = y + 'px';
+        
+        document.body.appendChild(star);
+        
+        // 動畫結束後移除節點
+        setTimeout(() => star.remove(), 1000);
+    }
+}
     </script>
 <div id="manualPanel" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; overflow-y:auto; padding:20px; box-sizing:border-box;">
     <div style="background:white; max-width:650px; margin:40px auto; padding:30px; border-radius:15px; position:relative; text-align:left; color:#333; box-shadow:0 0 20px rgba(0,0,0,0.5);">
@@ -1278,7 +1329,7 @@ function deleteKid(name) {
 
             <h3 style="color:#2980b9;">六、 利息系統</h3>
             <ul>
-                <li><b>週日複利：</b>每週日自動計算存款餘額 5% 利息。</li>
+                <li><b>週日複利：</b>每週日自動計算存款餘額 1% 利息。</li>
                 <li><b>自動防禦：</b>系統自動鎖定該週領取權限，若需重新發放，請至設定中心點擊「解鎖本週利息領取權限」。</li>
             </ul>
 
