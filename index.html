@@ -337,7 +337,7 @@
                     <button class="btn btn-danger" style="flex:1;" onclick="handleAtmAction('withdraw')">📤 提領現鈔</button>
                 </div>
                 <div style="margin-top:12px; background:#fffdf3; border:1px solid #fbeeb4; padding:10px; border-radius:10px; display:flex; justify-content:space-between; align-items:center; font-size:13px;">
-                    <div><strong style="color:#b78103;">🎁 週日利息魔術 (5% 複利) <span id="estimatedInterest" style="color: #e67e22; margin-left: 5px;">(目前可領: 0 顆 ⭐)</span></strong></div>
+                    <div><strong style="color:#b78103;">🎁 週日利息魔術 (1% 複利) <span id="estimatedInterest" style="color: #e67e22; margin-left: 5px;">(目前可領: 0 顆 ⭐)</span></strong></div>
                     <button class="btn" id="btnClaimInterest" style="background:#ffb300; padding:6px 12px; font-size:12px;" onclick="claimWeeklyInterest()">領取利息</button>
                 </div>
             </div>
@@ -836,7 +836,7 @@ function toggleTask(idx, event) { // 注意這裡多了一個 event 參數
         // --- 加入動畫觸發 ---
         // event.clientX 和 event.clientY 是點擊當下的螢幕座標
         if (event) {
-            createStarEffect(event.clientX, event.clientY);
+            createStarEffect(window.innerWidth / 2, window.innerHeight / 2);
         }
         
         kidData.walletStars += t.reward;
