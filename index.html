@@ -716,7 +716,13 @@ function renderBonusButtons() {
 
 renderBonusButtons();
         }
-
+function moveTaskType(date, idx) {
+    const kidData = globalData.kids[globalData.currentKid];
+    let task = kidData.dailyRecords[date][idx];
+    task.type = (task.type === 'must') ? 'extra' : 'must';
+    saveToStorage();
+    refreshUi();
+}
         function renderRocket(kidData) {
             const t = kidData.rocketTarget;
             const bar = document.getElementById('rocketBar');
@@ -761,68 +767,86 @@ renderBonusButtons();
 
         function renderTasks(kidData) {
     const pDate = getPureDateStr();
+    if(!kidData.dailyRecords[pDate]) initTodayTasks();
     const list = kidData.dailyRecords[pDate] || [];
-    const container = document.getElementById('todayTaskList'); 
-    container.innerHTML = "";
     
-    let done = 0;
+    // 初始化 type：若無此屬性，預設為 must
+    list.forEach(t => { if(!t.type) t.type = 'must'; });
+
+    const container = document.getElementById('todayTaskList'); 
+    container.innerHTML = `
+        <div style="margin-bottom:15px;"><h3 style="font-size:14px; color:var(--accent-blue);">🛡️ 必達任務</h3><div id="mustList"></div></div>
+        <div style="margin-bottom:15px;"><h3 style="font-size:14px; color:var(--accent-orange);">🎁 額外任務</h3><div id="extraList"></div></div>
+    `;
+
+    const mustList = document.getElementById('mustList');
+    const extraList = document.getElementById('extraList');
+    
+    let mustDone = 0;
+    let mustTotal = 0;
+    
+    // 計算必達任務相關資訊
     list.forEach((t, idx) => {
-        if(t.completed) done++;
-        let isRegular = (kidData.schedule[t.id] || []).length >= 5;
-        let tag = isRegular ? `<span class="task-tag tag-regular">⚡ 常規</span>` : `<span class="task-tag tag-challenge">🔥 挑戰</span>`;
-        container.innerHTML += `
+        if(t.type === 'must') {
+            mustTotal++;
+            if(t.completed) mustDone++;
+        }
+    });
+    
+    const allMustDone = mustTotal > 0 && mustDone === mustTotal;
+
+    list.forEach((t, idx) => {
+        const itemHtml = `
             <div class="task-item">
                 <div class="task-left">
                     <input type="checkbox" class="task-cb" ${t.completed?'checked':''} onchange="toggleTask(${idx}, event)">
-                    <span>${t.icon} ${t.name} ${tag}</span>
+                    <span>${t.icon} ${t.name}</span>
                 </div>
-                <div style="font-weight:bold; color:var(--accent-orange);">+${t.reward} ⭐</div>
+                <div>
+                    <button class="btn" style="padding:2px 6px; font-size:11px; background:#bdc3c7;" onclick="moveTaskType('${pDate}', ${idx})">
+                        ${t.type==='must'?'⬇️移至額外':'⬆️移至必達'}
+                    </button>
+                    <span style="font-weight:bold; color:var(--accent-orange); margin-left:8px;">+${t.reward}⭐</span>
+                </div>
             </div>
         `;
+        if(t.type === 'must') mustList.innerHTML += itemHtml;
+        else extraList.innerHTML += itemHtml;
     });
+
+    // 1. 更新完成比例 (僅計算必達任務)
+    document.getElementById('completionRateText').innerText = mustTotal ? `${Math.floor(mustDone/mustTotal*100)}% (${mustDone}/${mustTotal})` : "無必達任務";
     
-    // 1. 更新完成比例
-    document.getElementById('completionRateText').innerText = list.length ? `${Math.floor(done/list.length*100)}% (${done}/${list.length})` : "0%";
-    
-    // 2. 新增：鼓勵語句邏輯
-   const msg = document.getElementById('encouragementMsg');
-    
-    if (list.length > 0 && done === list.length) {
-        // 完成所有任務
-        msg.innerText = "太棒了吧，你完成所有任務了！請領取神秘小禮。";
-    } else if (list.length > 0 && (list.length - done === 1)) {
-        // 只剩下 1 個任務
-        msg.innerText = "加油，剩下 1 個任務就完成了！！";
-    } else if (done >= 1) {
-        // 完成 1 項以上 (且未全部完成)
+    // 2. 鼓勵語句邏輯 (僅判斷必達任務)
+    const msg = document.getElementById('encouragementMsg');
+    if (mustTotal > 0 && allMustDone) {
+        msg.innerText = "太棒了吧，你完成所有必達任務了！請領取神秘小禮。";
+    } else if (mustTotal > 0 && (mustTotal - mustDone === 1)) {
+        msg.innerText = "加油，剩下 1 個必達任務就達標了！！";
+    } else if (mustDone >= 1) {
         msg.innerText = "好的開始是成功的一半";
     } else {
-        // 尚未完成任何任務 (包含 done === 0)
         msg.innerText = "準備好開始今天的挑戰了嗎？";
     }
 
-    // 3. 新增：領取獎勵按鈕邏輯 (檢查是否完成且今日尚未領取)
+    // 3. 領取獎勵按鈕邏輯 (檢查所有必達任務完成)[cite: 1]
     const btnReward = document.getElementById('btnDailyReward');
-    // 假設 kidData 內有 dailyRewardClaimed 欄位來記錄領取日期
-    if (list.length > 0 && done === list.length && kidData.dailyRewardClaimed !== pDate) {
+    if (mustTotal > 0 && allMustDone && kidData.dailyRewardClaimed !== pDate) {
         btnReward.style.display = "block";
     } else {
         btnReward.style.display = "none";
     }
 
-    // --- 以下為原本寵物相關邏輯 (保持不變) ---
+    // 寵物相關邏輯 (保持不變)
     let petId = kidData.currentPetId || "dragon";
     let currentExp = kidData.petBackpack[petId] || 0;
     let petConfig = PET_DATABASE[petId] || PET_DATABASE.dragon;
-    
     let stg = petConfig.stages[0]; 
     petConfig.stages.forEach(s => { if(currentExp >= s.minExp) stg = s; });
-
     document.getElementById('petNameStage').innerText = `${petConfig.name} [${stg.title}] (經驗值:${currentExp}⭐)`;
     document.getElementById('petSpeechBubble').innerText = stg.speech;
     document.getElementById('petAvatarBox').innerText = stg.emoji;
-}
-      
+}      
 function toggleTask(idx, event) { // 注意這裡多了一個 event 參數
     const kidData = globalData.kids[globalData.currentKid];
     const pDate = getPureDateStr();
@@ -958,9 +982,15 @@ function giveDailyRandomStars() {
             
             let totalIn = 0; let totalOut = 0;
             filtered.forEach(l => {
-                if(l.type === 'in' || (l.type === 'atm' && l.amount > 0)) totalIn += Math.abs(l.amount);
-                if(l.type === 'out' || (l.type === 'atm' && l.amount < 0)) totalOut += Math.abs(l.amount);
-            });
+// 總存入：篩選與任務或獎勵相關的收入 (排除 ATM 轉帳)
+    if (l.reason.includes("完成任務") || l.reason.includes("額外獎勵") || l.reason.includes("利息") || l.reason.includes("開戶")) {
+        totalIn += Math.abs(l.amount);
+    }
+    // 總花費：篩選與商店或火箭圓夢相關的支出 (排除 ATM 轉帳)
+    if (l.reason.includes("商店兌換") || l.reason.includes("火箭圓夢")) {
+        totalOut += Math.abs(l.amount);
+    }
+});
             document.getElementById('statTotalIn').innerText = totalIn;
             document.getElementById('statTotalOut').innerText = totalOut;
 
